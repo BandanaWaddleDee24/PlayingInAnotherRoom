@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Other Room Audio Effect</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        input, button { margin: 10px; display: block; width: 80%; max-width: 400px; }
+    </style>
+</head>
+<body>
+<h2>Upload an MP3 to Hear It from Another Room</h2>
+<input type="file" id="audioFile" accept=".mp3, audio/*">
+<button onclick="applyEffect()">Apply Effect</button>
+<audio id="audio" controls></audio>
+
+<script>
+    let audioCtx, audioElement, mediaElementSource, lowPassFilter, gainNode;
+
+    function applyEffect() {
+        const fileInput = document.getElementById('audioFile');
+        audioElement = document.getElementById('audio');
+
+        if (fileInput.files.length === 0) {
+            alert("Please upload an audio file!");
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const objectURL = URL.createObjectURL(file);
+        audioElement.src = objectURL;
+
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        if (mediaElementSource) {
+            mediaElementSource.disconnect();
+        }
+
+        mediaElementSource = audioCtx.createMediaElementSource(audioElement);
+
+        lowPassFilter = audioCtx.createBiquadFilter();
+        lowPassFilter.type = "lowpass";
+        lowPassFilter.frequency.setValueAtTime(1500, audioCtx.currentTime);
+        lowPassFilter.Q.setValueAtTime(0.7, audioCtx.currentTime);
+
+        gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
+
+        mediaElementSource.connect(lowPassFilter);
+        lowPassFilter.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+    }
+</script>
+</body>
+</html>
