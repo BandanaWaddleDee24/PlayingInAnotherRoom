@@ -16,10 +16,11 @@
 <audio id="audio" controls></audio>
 
 <script>
-    let audioCtx, source, lowPassFilter, gainNode, audioBuffer, isPlaying = false;
+    let audioCtx, audioElement, mediaElementSource, lowPassFilter, gainNode;
 
     function applyEffect() {
         const fileInput = document.getElementById('audioFile');
+        audioElement = document.getElementById('audio');
 
         if (fileInput.files.length === 0) {
             alert("Please upload an audio file!");
@@ -28,61 +29,30 @@
 
         const file = fileInput.files[0];
         const objectURL = URL.createObjectURL(file);
+        audioElement.src = objectURL;
 
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        fetch(objectURL)
-            .then(response => response.arrayBuffer())
-            .then(data => audioCtx.decodeAudioData(data))
-            .then(buffer => {
-                audioBuffer = buffer;
-            })
-            .catch(error => console.error("Error processing audio:", error));
-    }
-
-    function togglePlayPause() {
-        if (!audioBuffer) {
-            alert("No audio loaded!");
-            return;
+        if (mediaElementSource) {
+            mediaElementSource.disconnect();
         }
 
-        if (isPlaying) {
-            source.stop();
-            isPlaying = false;
-            return;
-        }
+        mediaElementSource = audioCtx.createMediaElementSource(audioElement);
 
-        source = audioCtx.createBufferSource();
-        source.buffer = audioBuffer;
-
-        // Low-pass filter
         lowPassFilter = audioCtx.createBiquadFilter();
         lowPassFilter.type = "lowpass";
         lowPassFilter.frequency.setValueAtTime(1500, audioCtx.currentTime);
         lowPassFilter.Q.setValueAtTime(0.7, audioCtx.currentTime);
 
-        // Gain node
         gainNode = audioCtx.createGain();
         gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
 
-        source.connect(lowPassFilter);
+        mediaElementSource.connect(lowPassFilter);
         lowPassFilter.connect(gainNode);
         gainNode.connect(audioCtx.destination);
-
-        source.start();
-        isPlaying = true;
     }
-
-    // ✅ Background Audio Fix: Resume when page becomes visible
-    document.addEventListener("visibilitychange", () => {
-        if (audioCtx && audioCtx.state === "suspended") {
-            audioCtx.resume();
-        }
-    });
-
 </script>
-
 </body>
 </html>
