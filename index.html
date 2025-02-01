@@ -10,94 +10,49 @@
     </style>
 </head>
 <body>
-    <h2>Upload an MP3 to Hear It from Another Room</h2>
-    <input type="file" id="audioFile" accept=".mp3, audio/*">
-    <button onclick="applyEffect()">Play with Effect</button>
-    <button onclick="togglePlayPause()">Play/Pause</button>
-    
-    <script>
-        let audioCtx, source, lowPassFilter, gainNode, audioBuffer, isPlaying = false;
-        
-        function applyEffect() {
-            const fileInput = document.getElementById('audioFile');
-            
-            if (fileInput.files.length === 0) {
-                alert("Please upload an audio file!");
-                return;
-            }
-            
-            const file = fileInput.files[0];
-            const objectURL = URL.createObjectURL(file);
-            
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            
-            fetch(objectURL)
-                .then(response => response.arrayBuffer())
-                .then(data => audioCtx.decodeAudioData(data))
-                .then(buffer => {
-                    audioBuffer = buffer;
-                })
-                .catch(error => console.error("Error processing audio:", error));
+<h2>Upload an MP3 to Hear It from Another Room</h2>
+<input type="file" id="audioFile" accept=".mp3, audio/*">
+<button onclick="applyEffect()">Apply Effect</button>
+<audio id="audio" controls></audio>
+
+<script>
+    let audioCtx, audioElement, mediaElementSource, lowPassFilter, gainNode;
+
+    function applyEffect() {
+        const fileInput = document.getElementById('audioFile');
+        audioElement = document.getElementById('audio');
+
+        if (fileInput.files.length === 0) {
+            alert("Please upload an audio file!");
+            return;
         }
-        
-        function togglePlayPause() {
-            if (!audioBuffer) {
-                alert("No audio loaded!");
-                return;
-            }
-            
-            if (isPlaying) {
-                source.stop();
-                isPlaying = false;
-                return;
-            }
-            
-            source = audioCtx.createBufferSource();
-            source.buffer = audioBuffer;
-            
-            // Low-pass filter
-            lowPassFilter = audioCtx.createBiquadFilter();
-            lowPassFilter.type = "lowpass";
-            lowPassFilter.frequency.setValueAtTime(1500, audioCtx.currentTime);
-            lowPassFilter.Q.setValueAtTime(0.7, audioCtx.currentTime);
-            
-            // Gain node
-            gainNode = audioCtx.createGain();
-            gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
-            
-            source.connect(lowPassFilter);
-            lowPassFilter.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            source.start();
-            isPlaying = true;
+
+        const file = fileInput.files[0];
+        const objectURL = URL.createObjectURL(file);
+        audioElement.src = objectURL;
+
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
-    document.addEventListener("visibilitychange", () => {
-    if (audioCtx && audioCtx.state === "suspended") {
-        audioCtx.resume();
+
+        if (mediaElementSource) {
+            mediaElementSource.disconnect();
+        }
+
+        mediaElementSource = audioCtx.createMediaElementSource(audioElement);
+
+        lowPassFilter = audioCtx.createBiquadFilter();
+        lowPassFilter.type = "lowpass";
+        lowPassFilter.frequency.setValueAtTime(1500, audioCtx.currentTime);
+        lowPassFilter.Q.setValueAtTime(0.7, audioCtx.currentTime);
+
+        gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
+
+        mediaElementSource.connect(lowPassFilter);
+        lowPassFilter.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
     }
-});
-// Enable background playback with Media Session API
-if ('mediaSession' in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({
-        title: "Other Room Audio",
-        artist: "Your App",
-    });
-
-    navigator.mediaSession.setActionHandler("play", () => {
-        if (audioCtx.state === "suspended") {
-            audioCtx.resume();
-        }
-    });
-
-    navigator.mediaSession.setActionHandler("pause", () => {
-        if (audioCtx.state === "running") {
-            audioCtx.suspend();
-        }
-    });
-}
 </script>
 </body>
 </html>
