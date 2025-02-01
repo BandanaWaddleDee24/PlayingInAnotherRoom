@@ -79,6 +79,25 @@
         audioCtx.resume();
     }
 });
+// Enable background playback with Media Session API
+if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+        title: "Other Room Audio",
+        artist: "Your App",
+    });
+
+    navigator.mediaSession.setActionHandler("play", () => {
+        if (audioCtx.state === "suspended") {
+            audioCtx.resume();
+        }
+    });
+
+    navigator.mediaSession.setActionHandler("pause", () => {
+        if (audioCtx.state === "running") {
+            audioCtx.suspend();
+        }
+    });
+}
 </script>
 </body>
 </html>
