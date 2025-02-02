@@ -165,10 +165,10 @@
         }
 
         if (rainPlaying) {
-            rainAudio.pause();
+            rainGainNode.gain.setValueAtTime(0, audioCtx.currentTime);
         } else {
-            rainAudio.play();
             rainGainNode.gain.setValueAtTime(document.getElementById('rainVolume').value, audioCtx.currentTime);
+            rainAudio.play();
         }
         rainPlaying = !rainPlaying;
     }
@@ -180,10 +180,10 @@
         }
 
         if (fireplacePlaying) {
-            fireplaceAudio.pause();
+            fireplaceGainNode.gain.setValueAtTime(0, audioCtx.currentTime);
         } else {
-            fireplaceAudio.play();
             fireplaceGainNode.gain.setValueAtTime(document.getElementById('fireplaceVolume').value, audioCtx.currentTime);
+            fireplaceAudio.play();
         }
         fireplacePlaying = !fireplacePlaying;
     }
