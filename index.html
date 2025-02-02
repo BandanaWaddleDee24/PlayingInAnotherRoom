@@ -36,21 +36,69 @@
     let audioElement = document.getElementById('audio');
     let audioCtx;
     let mediaElementSource, lowPassFilter, gainNode;
-    let rainGainNode, fireplaceGainNode, rainSource, fireplaceSource;
+    let rainGainNode, fireplaceGainNode;
     let playlist = [];
     let currentTrackIndex = 0;
     let loopPlaylist = false;
     let rainPlaying = false;
     let fireplacePlaying = false;
-    let rainAudio = new Audio("https://www.soundjay.com/nature/rain-01.mp3");
-    let fireplaceAudio = new Audio("https://www.soundjay.com/fire/fire-crackle-1.mp3");
 
+    const rainAudio = new Audio("https://www.soundjay.com/nature/rain-01.mp3");
+    const fireplaceAudio = new Audio("https://www.soundjay.com/fire/fire-crackle-1.mp3");
     rainAudio.loop = true;
     fireplaceAudio.loop = true;
 
-    document.getElementById('loopPlaylist').addEventListener('change', (event) => {
-        loopPlaylist = event.target.checked;
-    });
+    function initAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            setupBackgroundAudio();
+        }
+    }
+
+    function setupBackgroundAudio() {
+        rainGainNode = audioCtx.createGain();
+        fireplaceGainNode = audioCtx.createGain();
+
+        const rainSource = audioCtx.createMediaElementSource(rainAudio);
+        const fireplaceSource = audioCtx.createMediaElementSource(fireplaceAudio);
+
+        rainSource.connect(rainGainNode).connect(audioCtx.destination);
+        fireplaceSource.connect(fireplaceGainNode).connect(audioCtx.destination);
+    }
+
+    function toggleRain() {
+        initAudioContext();
+        if (rainPlaying) {
+            rainAudio.pause();
+        } else {
+            rainAudio.play();
+            setRainVolume();
+        }
+        rainPlaying = !rainPlaying;
+    }
+
+    function toggleFireplace() {
+        initAudioContext();
+        if (fireplacePlaying) {
+            fireplaceAudio.pause();
+        } else {
+            fireplaceAudio.play();
+            setFireplaceVolume();
+        }
+        fireplacePlaying = !fireplacePlaying;
+    }
+
+    function setRainVolume() {
+        if (rainGainNode) {
+            rainGainNode.gain.value = document.getElementById('rainVolume').value;
+        }
+    }
+
+    function setFireplaceVolume() {
+        if (fireplaceGainNode) {
+            fireplaceGainNode.gain.value = document.getElementById('fireplaceVolume').value;
+        }
+    }
 
     function playPlaylist() {
         const fileInput = document.getElementById('audioFiles');
@@ -61,12 +109,10 @@
 
         playlist = [];
         currentTrackIndex = 0;
-
-        const fileList = Array.from(fileInput.files);
         const playlistElement = document.getElementById('playlist');
         playlistElement.innerHTML = '';
 
-        fileList.forEach((file, index) => {
+        Array.from(fileInput.files).forEach((file, index) => {
             const objectURL = URL.createObjectURL(file);
             playlist.push({ name: file.name, url: objectURL });
 
@@ -81,17 +127,11 @@
 
     function applyEffectAndPlay(index) {
         if (index < 0 || index >= playlist.length) return;
+        initAudioContext();
 
         currentTrackIndex = index;
         audioElement.src = playlist[index].url;
         audioElement.play().catch(err => console.error("Play error:", err));
-
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            setupBackgroundAudio();
-        } else if (audioCtx.state === "suspended") {
-            audioCtx.resume();
-        }
 
         if (mediaElementSource) {
             mediaElementSource.disconnect();
@@ -100,16 +140,13 @@
         mediaElementSource = audioCtx.createMediaElementSource(audioElement);
         lowPassFilter = audioCtx.createBiquadFilter();
         lowPassFilter.type = "lowpass";
-        lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
-        lowPassFilter.Q.setValueAtTime(1.8, audioCtx.currentTime);
+        lowPassFilter.frequency.value = 300;
+        lowPassFilter.Q.value = 1.8;
 
         gainNode = audioCtx.createGain();
-        gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
+        gainNode.gain.value = 0.35;
 
-        mediaElementSource.connect(lowPassFilter);
-        lowPassFilter.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
+        mediaElementSource.connect(lowPassFilter).connect(gainNode).connect(audioCtx.destination);
         updatePlaylistUI();
     }
 
@@ -140,65 +177,6 @@
         nextTrack();
     });
 
-    function setupBackgroundAudio() {
-        if (!audioCtx) return;
-
-        if (!rainGainNode) {
-            rainGainNode = audioCtx.createGain();
-            rainSource = audioCtx.createMediaElementSource(rainAudio);
-            rainSource.connect(rainGainNode);
-            rainGainNode.connect(audioCtx.destination);
-        }
-
-        if (!fireplaceGainNode) {
-            fireplaceGainNode = audioCtx.createGain();
-            fireplaceSource = audioCtx.createMediaElementSource(fireplaceAudio);
-            fireplaceSource.connect(fireplaceGainNode);
-            fireplaceGainNode.connect(audioCtx.destination);
-        }
-    }
-
-    function toggleRain() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            setupBackgroundAudio();
-        }
-
-        if (rainPlaying) {
-            rainGainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-        } else {
-            rainGainNode.gain.setValueAtTime(document.getElementById('rainVolume').value, audioCtx.currentTime);
-            rainAudio.play();
-        }
-        rainPlaying = !rainPlaying;
-    }
-
-    function toggleFireplace() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            setupBackgroundAudio();
-        }
-
-        if (fireplacePlaying) {
-            fireplaceGainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-        } else {
-            fireplaceGainNode.gain.setValueAtTime(document.getElementById('fireplaceVolume').value, audioCtx.currentTime);
-            fireplaceAudio.play();
-        }
-        fireplacePlaying = !fireplacePlaying;
-    }
-
-    function setRainVolume() {
-        if (rainGainNode) {
-            rainGainNode.gain.setValueAtTime(document.getElementById('rainVolume').value, audioCtx.currentTime);
-        }
-    }
-
-    function setFireplaceVolume() {
-        if (fireplaceGainNode) {
-            fireplaceGainNode.gain.setValueAtTime(document.getElementById('fireplaceVolume').value, audioCtx.currentTime);
-        }
-    }
 </script>
 </body>
 </html>
