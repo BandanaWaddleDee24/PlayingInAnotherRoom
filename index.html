@@ -30,9 +30,12 @@
         const file = fileInput.files[0];
         const objectURL = URL.createObjectURL(file);
         audioElement.src = objectURL;
-
+        
+        // Ensure AudioContext is not suspended
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } else if (audioCtx.state === "suspended") {
+            audioCtx.resume();
         }
 
         if (mediaElementSource) {
@@ -52,6 +55,37 @@
         mediaElementSource.connect(lowPassFilter);
         lowPassFilter.connect(gainNode);
         gainNode.connect(audioCtx.destination);
+
+        // Media Session API to show playback controls in notifications
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: file.name,
+                artist: "Unknown",
+                artwork: [{ src: "https://via.placeholder.com/128", sizes: "128x128", type: "image/png" }]
+            });
+
+            navigator.mediaSession.setActionHandler("play", () => {
+                audioElement.play();
+                audioCtx.resume();
+            });
+
+            navigator.mediaSession.setActionHandler("pause", () => {
+                audioElement.pause();
+            });
+
+            navigator.mediaSession.setActionHandler("stop", () => {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+            });
+
+            navigator.mediaSession.setActionHandler("seekbackward", () => {
+                audioElement.currentTime = Math.max(audioElement.currentTime - 10, 0);
+            });
+
+            navigator.mediaSession.setActionHandler("seekforward", () => {
+                audioElement.currentTime = Math.min(audioElement.currentTime + 10, audioElement.duration);
+            });
+        }
     }
 </script>
 </body>
