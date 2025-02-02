@@ -88,11 +88,11 @@
         mediaElementSource = audioCtx.createMediaElementSource(audioElement);
         lowPassFilter = audioCtx.createBiquadFilter();
         lowPassFilter.type = "lowpass";
-        lowPassFilter.frequency.setValueAtTime(1500, audioCtx.currentTime);
+        lowPassFilter.frequency.setValueAtTime(2500, audioCtx.currentTime);
         lowPassFilter.Q.setValueAtTime(0.7, audioCtx.currentTime);
 
         gainNode = audioCtx.createGain();
-        gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
 
         mediaElementSource.connect(lowPassFilter);
         lowPassFilter.connect(gainNode);
