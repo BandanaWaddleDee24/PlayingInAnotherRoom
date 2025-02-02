@@ -3,90 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Other Room Audio Effect</title>
+    <title>Playlist Audio Player</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
         input, button { margin: 10px; display: block; width: 80%; max-width: 400px; }
+        #playlist { list-style: none; padding: 0; }
+        #playlist li { padding: 5px; cursor: pointer; border-bottom: 1px solid #ddd; }
+        #playlist li.active { font-weight: bold; color: green; }
     </style>
 </head>
 <body>
-<h2>Upload an MP3 to Hear It from Another Room</h2>
-<input type="file" id="audioFile" accept=".mp3, audio/*">
-<button onclick="applyEffect()">Apply Effect</button>
+<h2>Upload Multiple MP3s to Create a Playlist</h2>
+<input type="file" id="audioFiles" accept=".mp3, audio/*" multiple>
+<label>
+    <input type="checkbox" id="loopPlaylist"> Loop Playlist
+</label>
+<button onclick="playPlaylist()">Play Playlist</button>
+<button onclick="pauseAudio()">Pause</button>
+<button onclick="nextTrack()">Skip to Next</button>
+<ul id="playlist"></ul>
 <audio id="audio" controls></audio>
 
 <script>
-    let audioCtx, audioElement, mediaElementSource, lowPassFilter, gainNode;
+    let audioElement = document.getElementById('audio');
+    let playlist = [];
+    let currentTrackIndex = 0;
+    let loopPlaylist = false;
 
-    function applyEffect() {
-        const fileInput = document.getElementById('audioFile');
-        audioElement = document.getElementById('audio');
+    document.getElementById('loopPlaylist').addEventListener('change', (event) => {
+        loopPlaylist = event.target.checked;
+    });
 
+    function playPlaylist() {
+        const fileInput = document.getElementById('audioFiles');
         if (fileInput.files.length === 0) {
-            alert("Please upload an audio file!");
+            alert("Please upload audio files!");
             return;
         }
 
-        const file = fileInput.files[0];
-        const objectURL = URL.createObjectURL(file);
-        audioElement.src = objectURL;
+        // Clear previous playlist
+        playlist = [];
+        currentTrackIndex = 0;
+
+        // Get selected files
+        const fileList = Array.from(fileInput.files);
+        const playlistElement = document.getElementById('playlist');
+        playlistElement.innerHTML = ''; // Clear previous list
+
+        fileList.forEach((file, index) => {
+            const objectURL = URL.createObjectURL(file);
+            playlist.push({ name: file.name, url: objectURL });
+
+            // Add to visual playlist
+            const listItem = document.createElement('li');
+            listItem.textContent = file.name;
+            listItem.addEventListener('click', () => playSpecificTrack(index));
+            playlistElement.appendChild(listItem);
+        });
+
+        // Start playing first track
+        playTrack(0);
+    }
+
+    function playTrack(index) {
+        if (index < 0 || index >= playlist.length) return;
         
-        // Ensure AudioContext is not suspended
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        } else if (audioCtx.state === "suspended") {
-            audioCtx.resume();
-        }
+        currentTrackIndex = index;
+        audioElement.src = playlist[index].url;
+        audioElement.play().catch(err => console.error("Play error:", err));
 
-        if (mediaElementSource) {
-            mediaElementSource.disconnect();
-        }
+        updatePlaylistUI();
+    }
 
-        mediaElementSource = audioCtx.createMediaElementSource(audioElement);
+    function playSpecificTrack(index) {
+        playTrack(index);
+    }
 
-        lowPassFilter = audioCtx.createBiquadFilter();
-        lowPassFilter.type = "lowpass";
-        lowPassFilter.frequency.setValueAtTime(1500, audioCtx.currentTime);
-        lowPassFilter.Q.setValueAtTime(0.7, audioCtx.currentTime);
-
-        gainNode = audioCtx.createGain();
-        gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
-
-        mediaElementSource.connect(lowPassFilter);
-        lowPassFilter.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        // Media Session API to show playback controls in notifications
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: file.name,
-                artist: "Unknown",
-                artwork: [{ src: "https://via.placeholder.com/128", sizes: "128x128", type: "image/png" }]
-            });
-
-            navigator.mediaSession.setActionHandler("play", () => {
-                audioElement.play();
-                audioCtx.resume();
-            });
-
-            navigator.mediaSession.setActionHandler("pause", () => {
-                audioElement.pause();
-            });
-
-            navigator.mediaSession.setActionHandler("stop", () => {
-                audioElement.pause();
-                audioElement.currentTime = 0;
-            });
-
-            navigator.mediaSession.setActionHandler("seekbackward", () => {
-                audioElement.currentTime = Math.max(audioElement.currentTime - 10, 0);
-            });
-
-            navigator.mediaSession.setActionHandler("seekforward", () => {
-                audioElement.currentTime = Math.min(audioElement.currentTime + 10, audioElement.duration);
-            });
+    function nextTrack() {
+        if (currentTrackIndex + 1 < playlist.length) {
+            playTrack(currentTrackIndex + 1);
+        } else if (loopPlaylist) {
+            playTrack(0);
         }
     }
+
+    function pauseAudio() {
+        audioElement.pause();
+    }
+
+    function updatePlaylistUI() {
+        const playlistItems = document.querySelectorAll("#playlist li");
+        playlistItems.forEach((item, index) => {
+            item.classList.toggle("active", index === currentTrackIndex);
+        });
+    }
+
+    // Auto-play next track when the current one ends
+    audioElement.addEventListener('ended', () => {
+        nextTrack();
+    });
 </script>
 </body>
 </html>
