@@ -42,61 +42,19 @@
     let loopPlaylist = false;
     let rainPlaying = false;
     let fireplacePlaying = false;
+    let rainAudio, fireplaceAudio;
 
-    const rainAudio = new Audio("https://www.soundjay.com/nature/rain-01.mp3");
-    const fireplaceAudio = new Audio("https://www.soundjay.com/fire/fire-crackle-1.mp3");
-    rainAudio.loop = true;
-    fireplaceAudio.loop = true;
+    document.getElementById('loopPlaylist').addEventListener('change', (event) => {
+        loopPlaylist = event.target.checked;
+    });
 
-    function initAudioContext() {
+    function initializeAudioContext() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             setupBackgroundAudio();
         }
-    }
-
-    function setupBackgroundAudio() {
-        rainGainNode = audioCtx.createGain();
-        fireplaceGainNode = audioCtx.createGain();
-
-        const rainSource = audioCtx.createMediaElementSource(rainAudio);
-        const fireplaceSource = audioCtx.createMediaElementSource(fireplaceAudio);
-
-        rainSource.connect(rainGainNode).connect(audioCtx.destination);
-        fireplaceSource.connect(fireplaceGainNode).connect(audioCtx.destination);
-    }
-
-    function toggleRain() {
-        initAudioContext();
-        if (rainPlaying) {
-            rainAudio.pause();
-        } else {
-            rainAudio.play();
-            setRainVolume();
-        }
-        rainPlaying = !rainPlaying;
-    }
-
-    function toggleFireplace() {
-        initAudioContext();
-        if (fireplacePlaying) {
-            fireplaceAudio.pause();
-        } else {
-            fireplaceAudio.play();
-            setFireplaceVolume();
-        }
-        fireplacePlaying = !fireplacePlaying;
-    }
-
-    function setRainVolume() {
-        if (rainGainNode) {
-            rainGainNode.gain.value = document.getElementById('rainVolume').value;
-        }
-    }
-
-    function setFireplaceVolume() {
-        if (fireplaceGainNode) {
-            fireplaceGainNode.gain.value = document.getElementById('fireplaceVolume').value;
+        if (audioCtx.state === "suspended") {
+            audioCtx.resume();
         }
     }
 
@@ -109,10 +67,12 @@
 
         playlist = [];
         currentTrackIndex = 0;
+
+        const fileList = Array.from(fileInput.files);
         const playlistElement = document.getElementById('playlist');
         playlistElement.innerHTML = '';
 
-        Array.from(fileInput.files).forEach((file, index) => {
+        fileList.forEach((file, index) => {
             const objectURL = URL.createObjectURL(file);
             playlist.push({ name: file.name, url: objectURL });
 
@@ -126,8 +86,7 @@
     }
 
     function applyEffectAndPlay(index) {
-        if (index < 0 || index >= playlist.length) return;
-        initAudioContext();
+        initializeAudioContext();
 
         currentTrackIndex = index;
         audioElement.src = playlist[index].url;
@@ -140,13 +99,16 @@
         mediaElementSource = audioCtx.createMediaElementSource(audioElement);
         lowPassFilter = audioCtx.createBiquadFilter();
         lowPassFilter.type = "lowpass";
-        lowPassFilter.frequency.value = 300;
-        lowPassFilter.Q.value = 1.8;
+        lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
+        lowPassFilter.Q.setValueAtTime(1.8, audioCtx.currentTime);
 
         gainNode = audioCtx.createGain();
-        gainNode.gain.value = 0.35;
+        gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
 
-        mediaElementSource.connect(lowPassFilter).connect(gainNode).connect(audioCtx.destination);
+        mediaElementSource.connect(lowPassFilter);
+        lowPassFilter.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
         updatePlaylistUI();
     }
 
@@ -177,6 +139,49 @@
         nextTrack();
     });
 
+    function setupBackgroundAudio() {
+        rainAudio = new Audio("https://www.soundjay.com/nature/rain-01.mp3");
+        fireplaceAudio = new Audio("https://www.soundjay.com/fire/fire-crackle-1.mp3");
+
+        rainAudio.loop = true;
+        fireplaceAudio.loop = true;
+
+        rainGainNode = audioCtx.createGain();
+        fireplaceGainNode = audioCtx.createGain();
+
+        rainAudio.connect(rainGainNode).connect(audioCtx.destination);
+        fireplaceAudio.connect(fireplaceGainNode).connect(audioCtx.destination);
+    }
+
+    function toggleRain() {
+        initializeAudioContext();
+        if (rainPlaying) {
+            rainAudio.pause();
+        } else {
+            rainAudio.volume = document.getElementById('rainVolume').value;
+            rainAudio.play();
+        }
+        rainPlaying = !rainPlaying;
+    }
+
+    function toggleFireplace() {
+        initializeAudioContext();
+        if (fireplacePlaying) {
+            fireplaceAudio.pause();
+        } else {
+            fireplaceAudio.volume = document.getElementById('fireplaceVolume').value;
+            fireplaceAudio.play();
+        }
+        fireplacePlaying = !fireplacePlaying;
+    }
+
+    function setRainVolume() {
+        if (rainAudio) rainAudio.volume = document.getElementById('rainVolume').value;
+    }
+
+    function setFireplaceVolume() {
+        if (fireplaceAudio) fireplaceAudio.volume = document.getElementById('fireplaceVolume').value;
+    }
 </script>
 </body>
 </html>
