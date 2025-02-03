@@ -95,9 +95,18 @@
         let fireAudio = new Audio();
         let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         let gainNode = audioCtx.createGain();
+        let lowPassFilter = audioCtx.createBiquadFilter();
         let playlist = [];
         let currentTrackIndex = 0;
-        let mediaElementSource;
+        let mediaElementSource = audioCtx.createMediaElementSource(audioElement);
+
+        lowPassFilter.type = "lowpass";
+        lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
+
+        mediaElementSource.connect(lowPassFilter);
+        lowPassFilter.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
 
         document.getElementById('audioFiles').addEventListener('change', function(event) {
             handleFileUpload(event.target.files);
@@ -126,7 +135,6 @@
             }
             currentTrackIndex = index;
             audioElement.src = playlist[index].url;
-            applyAudioProcessing();
             audioElement.play();
             updatePlaylistUI();
         }
@@ -135,21 +143,6 @@
             Array.from(document.getElementById('playlist').children).forEach((li, i) => {
                 li.classList.toggle('active', i === currentTrackIndex);
             });
-        }
-
-        function applyAudioProcessing() {
-            if (mediaElementSource) {
-                mediaElementSource.disconnect();
-            }
-            mediaElementSource = audioCtx.createMediaElementSource(audioElement);
-            let lowPassFilter = audioCtx.createBiquadFilter();
-            lowPassFilter.type = "lowpass";
-            lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
-            
-            mediaElementSource.connect(lowPassFilter);
-            lowPassFilter.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
         }
 
         function nextTrack() {
