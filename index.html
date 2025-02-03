@@ -75,42 +75,42 @@
 <body>
     <h2>Upload Multiple MP3s to Create a Playlist</h2>
     <input type="file" id="audioFiles" accept=".mp3, audio/*" multiple>
-
-    <h3>Custom Background Sounds</h3>
-    <label>Upload Background Sounds: <input type="file" id="bgFiles" accept=".mp3, audio/*" multiple></label>
-    <ul id="bgPlaylist"></ul>
-    <button onclick="playBackgroundSound()">Play Background Sound</button>
-    <button onclick="stopBackgroundSound()">Stop Background Sound</button>
-    <input type="range" id="bgVolume" min="0" max="1" step="0.1" value="0.3" onchange="setBgVolume()"> 
-
     <ul id="playlist"></ul>
     <audio id="audio" controls></audio>
 
+    <h3>Custom Background Sounds</h3>
+    <label>Upload Rain Sound: <input type="file" id="rainFile" accept=".mp3, audio/*"></label>
+    <button onclick="toggleRain()">🌧 Toggle Rain</button>
+    <input type="range" id="rainVolume" min="0" max="1" step="0.1" value="0.3" onchange="setRainVolume()"> 
+
+    <label>Upload Fireplace Sound: <input type="file" id="fireFile" accept=".mp3, audio/*"></label>
+    <button onclick="toggleFireplace()">🔥 Toggle Fireplace</button>
+    <input type="range" id="fireplaceVolume" min="0" max="1" step="0.1" value="0.3" onchange="setFireplaceVolume()"> 
+
     <script>
         let audioElement = document.getElementById('audio');
-        let backgroundAudio = new Audio();
+        let rainAudio = new Audio();
+        let fireAudio = new Audio();
         let playlist = [];
-        let bgPlaylist = [];
         let currentTrackIndex = 0;
 
         document.getElementById('audioFiles').addEventListener('change', function(event) {
-            handleFileUpload(event.target.files, playlist, 'playlist', playTrack);
+            handleFileUpload(event.target.files);
         });
 
-        document.getElementById('bgFiles').addEventListener('change', function(event) {
-            handleFileUpload(event.target.files, bgPlaylist, 'bgPlaylist', setBackgroundTrack);
-        });
-
-        function handleFileUpload(files, targetPlaylist, targetElementId, clickCallback) {
-            let targetElement = document.getElementById(targetElementId);
-            targetElement.innerHTML = '';
+        function handleFileUpload(files) {
+            playlist = [];
+            let playlistElement = document.getElementById('playlist');
+            playlistElement.innerHTML = '';
+            
             Array.from(files).forEach((file, index) => {
                 let objectURL = URL.createObjectURL(file);
-                targetPlaylist.push({ name: file.name, url: objectURL });
+                playlist.push({ name: file.name, url: objectURL });
+                
                 let listItem = document.createElement('li');
                 listItem.textContent = file.name;
-                listItem.addEventListener('click', () => clickCallback(index));
-                targetElement.appendChild(listItem);
+                listItem.addEventListener('click', () => playTrack(index));
+                playlistElement.appendChild(listItem);
             });
         }
 
@@ -118,34 +118,38 @@
             currentTrackIndex = index;
             audioElement.src = playlist[index].url;
             audioElement.play();
-            updateActiveUI(playlist, 'playlist', index);
         }
 
-        function setBackgroundTrack(index) {
-            backgroundAudio.src = bgPlaylist[index].url;
-            backgroundAudio.loop = true;
-            updateActiveUI(bgPlaylist, 'bgPlaylist', index);
+        function toggleRain() {
+            if (!rainAudio.src) {
+                const fileInput = document.getElementById('rainFile');
+                if (fileInput.files.length === 0) return;
+                let objectURL = URL.createObjectURL(fileInput.files[0]);
+                rainAudio.src = objectURL;
+                rainAudio.loop = true;
+                rainAudio.volume = document.getElementById('rainVolume').value;
+            }
+            rainAudio.paused ? rainAudio.play() : rainAudio.pause();
         }
 
-        function playBackgroundSound() {
-            backgroundAudio.volume = document.getElementById('bgVolume').value;
-            backgroundAudio.play();
+        function toggleFireplace() {
+            if (!fireAudio.src) {
+                const fileInput = document.getElementById('fireFile');
+                if (fileInput.files.length === 0) return;
+                let objectURL = URL.createObjectURL(fileInput.files[0]);
+                fireAudio.src = objectURL;
+                fireAudio.loop = true;
+                fireAudio.volume = document.getElementById('fireplaceVolume').value;
+            }
+            fireAudio.paused ? fireAudio.play() : fireAudio.pause();
         }
 
-        function stopBackgroundSound() {
-            backgroundAudio.pause();
-            backgroundAudio.currentTime = 0;
+        function setRainVolume() {
+            rainAudio.volume = document.getElementById('rainVolume').value;
         }
 
-        function setBgVolume() {
-            backgroundAudio.volume = document.getElementById('bgVolume').value;
-        }
-
-        function updateActiveUI(playlist, elementId, activeIndex) {
-            let listItems = document.getElementById(elementId).children;
-            Array.from(listItems).forEach((item, index) => {
-                item.classList.toggle('active', index === activeIndex);
-            });
+        function setFireplaceVolume() {
+            fireAudio.volume = document.getElementById('fireplaceVolume').value;
         }
     </script>
 </body>
