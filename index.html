@@ -112,20 +112,29 @@
                 listItem.addEventListener('click', () => playTrack(index));
                 playlistElement.appendChild(listItem);
             });
+            if (playlist.length > 0) {
+                playTrack(0);
+            }
         }
 
         function playTrack(index) {
             currentTrackIndex = index;
             audioElement.src = playlist[index].url;
             audioElement.play();
+            updateActiveUI();
+        }
+
+        function updateActiveUI() {
+            let listItems = document.getElementById('playlist').children;
+            Array.from(listItems).forEach((item, index) => {
+                item.classList.toggle('active', index === currentTrackIndex);
+            });
         }
 
         function toggleRain() {
-            if (!rainAudio.src) {
-                const fileInput = document.getElementById('rainFile');
-                if (fileInput.files.length === 0) return;
-                let objectURL = URL.createObjectURL(fileInput.files[0]);
-                rainAudio.src = objectURL;
+            let fileInput = document.getElementById('rainFile');
+            if (!rainAudio.src && fileInput.files.length > 0) {
+                rainAudio.src = URL.createObjectURL(fileInput.files[0]);
                 rainAudio.loop = true;
                 rainAudio.volume = document.getElementById('rainVolume').value;
             }
@@ -133,11 +142,9 @@
         }
 
         function toggleFireplace() {
-            if (!fireAudio.src) {
-                const fileInput = document.getElementById('fireFile');
-                if (fileInput.files.length === 0) return;
-                let objectURL = URL.createObjectURL(fileInput.files[0]);
-                fireAudio.src = objectURL;
+            let fileInput = document.getElementById('fireFile');
+            if (!fireAudio.src && fileInput.files.length > 0) {
+                fireAudio.src = URL.createObjectURL(fileInput.files[0]);
                 fireAudio.loop = true;
                 fireAudio.volume = document.getElementById('fireplaceVolume').value;
             }
