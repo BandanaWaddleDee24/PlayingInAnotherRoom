@@ -96,14 +96,14 @@
 
         .audio-controls {
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
             gap: 10px;
+            margin-top: 10px;
         }
 
-        .audio-controls div {
-            display: flex;
-            gap: 10px;
+        .audio-controls button {
+            width: 120px;
         }
 
         audio {
@@ -114,18 +114,16 @@
     </style>
 </head>
 <body>
-    <h2>Upload Multiple MP3s to Create a Playlist</h2>
+    <h2>Upload MP3s to Create a Playlist</h2>
     <input type="file" id="audioFiles" accept=".mp3, audio/*" multiple>
     <label>
         <input type="checkbox" id="loopPlaylist"> Loop Playlist
     </label>
 
     <div class="audio-controls">
-        <div>
-            <button onclick="playPlaylist()">▶ Play</button>
-            <button onclick="pauseAudio()">⏸ Pause</button>
-            <button onclick="nextTrack()">⏭ Skip</button>
-        </div>
+        <button onclick="playAudio()">▶ Play</button>
+        <button onclick="pauseAudio()">⏸ Pause</button>
+        <button onclick="nextTrack()">⏭ Skip</button>
     </div>
 
     <h3>Custom Background Sounds</h3>
@@ -143,122 +141,98 @@
 
     <script>
         let audioElement = document.getElementById('audio');
-        let audioCtx;
-        let mediaElementSource, lowPassFilter, gainNode;
-        let rainGainNode, fireplaceGainNode;
         let playlist = [];
         let currentTrackIndex = 0;
         let loopPlaylist = false;
+        let rainAudio = new Audio();
+        let fireplaceAudio = new Audio();
         let rainPlaying = false;
         let fireplacePlaying = false;
-        let rainAudio, fireplaceAudio;
 
         document.getElementById('loopPlaylist').addEventListener('change', (event) => {
             loopPlaylist = event.target.checked;
         });
 
-        function initializeAudioContext() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === "suspended") {
-                audioCtx.resume();
-            }
-        }
-
-        function playPlaylist() {
-            const fileInput = document.getElementById('audioFiles');
-            if (fileInput.files.length === 0) {
-                alert("Please upload audio files!");
+        function playAudio() {
+            if (playlist.length === 0) {
+                alert("Please upload at least one audio file!");
                 return;
             }
-
-            playlist = [];
-            currentTrackIndex = 0;
-
-            const fileList = Array.from(fileInput.files);
-            const playlistElement = document.getElementById('playlist');
-            playlistElement.innerHTML = '';
-
-            fileList.forEach((file, index) => {
-                const objectURL = URL.createObjectURL(file);
-                playlist.push({ name: file.name, url: objectURL });
-
-                const listItem = document.createElement('li');
-                listItem.textContent = file.name;
-                listItem.addEventListener('click', () => playSpecificTrack(index));
-                playlistElement.appendChild(listItem);
-            });
-
-            applyEffectAndPlay(0);
-        }
-
-        function applyEffectAndPlay(index) {
-            initializeAudioContext();
-
-            currentTrackIndex = index;
-            audioElement.src = playlist[index].url;
-            audioElement.play().catch(err => console.error("Play error:", err));
-
-            if (mediaElementSource) {
-                mediaElementSource.disconnect();
-            }
-
-            mediaElementSource = audioCtx.createMediaElementSource(audioElement);
-            lowPassFilter = audioCtx.createBiquadFilter();
-            lowPassFilter.type = "lowpass";
-            lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
-            lowPassFilter.Q.setValueAtTime(1.8, audioCtx.currentTime);
-
-            gainNode = audioCtx.createGain();
-            gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
-
-            mediaElementSource.connect(lowPassFilter);
-            lowPassFilter.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
+            audioElement.src = playlist[currentTrackIndex].url;
+            audioElement.play();
             updatePlaylistUI();
         }
 
-        function setupCustomBackground(fileInput, audioRef, gainNode) {
-            if (fileInput.files.length === 0) return;
-
-            const file = fileInput.files[0];
-            const objectURL = URL.createObjectURL(file);
-            audioRef.src = objectURL;
-            audioRef.loop = true;
-            audioRef.volume = 0.3;
-            gainNode.gain.setValueAtTime(audioRef.volume, audioCtx.currentTime);
+        function pauseAudio() {
+            audioElement.pause();
         }
 
+        function nextTrack() {
+            if (playlist.length === 0) return;
+            currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+            playAudio();
+        }
+
+        function updatePlaylistUI() {
+            const playlistElement = document.getElementById('playlist');
+            playlistElement.innerHTML = '';
+            playlist.forEach((track, index) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = track.name;
+                if (index === currentTrackIndex) {
+                    listItem.classList.add('active');
+                }
+                listItem.addEventListener('click', () => {
+                    currentTrackIndex = index;
+                    playAudio();
+                });
+                playlistElement.appendChild(listItem);
+            });
+        }
+
+        document.getElementById('audioFiles').addEventListener('change', function () {
+            const fileList = Array.from(this.files);
+            fileList.forEach(file => {
+                const objectURL = URL.createObjectURL(file);
+                playlist.push({ name: file.name, url: objectURL });
+            });
+            updatePlaylistUI();
+        });
+
         function toggleRain() {
-            initializeAudioContext();
-            if (!rainAudio) {
-                rainAudio = new Audio();
-                rainGainNode = audioCtx.createGain();
-                setupCustomBackground(document.getElementById('rainFile'), rainAudio, rainGainNode);
+            if (!rainAudio.src) {
+                const fileInput = document.getElementById('rainFile');
+                if (fileInput.files.length === 0) {
+                    alert("Please upload a rain sound file first!");
+                    return;
+                }
+                rainAudio.src = URL.createObjectURL(fileInput.files[0]);
+                rainAudio.loop = true;
             }
             rainPlaying ? rainAudio.pause() : rainAudio.play();
             rainPlaying = !rainPlaying;
         }
 
         function toggleFireplace() {
-            initializeAudioContext();
-            if (!fireplaceAudio) {
-                fireplaceAudio = new Audio();
-                fireplaceGainNode = audioCtx.createGain();
-                setupCustomBackground(document.getElementById('fireFile'), fireplaceAudio, fireplaceGainNode);
+            if (!fireplaceAudio.src) {
+                const fileInput = document.getElementById('fireFile');
+                if (fileInput.files.length === 0) {
+                    alert("Please upload a fireplace sound file first!");
+                    return;
+                }
+                fireplaceAudio.src = URL.createObjectURL(fileInput.files[0]);
+                fireplaceAudio.loop = true;
             }
             fireplacePlaying ? fireplaceAudio.pause() : fireplaceAudio.play();
             fireplacePlaying = !fireplacePlaying;
         }
 
         function setRainVolume() {
-            if (rainAudio) rainAudio.volume = document.getElementById('rainVolume').value;
+            rainAudio.volume = document.getElementById('rainVolume').value;
         }
 
         function setFireplaceVolume() {
-            if (fireplaceAudio) fireplaceAudio.volume = document.getElementById('fireplaceVolume').value;
+            fireplaceAudio.volume = document.getElementById('fireplaceVolume').value;
         }
     </script>
 </body>
