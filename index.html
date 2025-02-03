@@ -129,33 +129,33 @@
             if (playlist.length > 0) playTrack(0);
         }
 
-        function playTrack(index) {
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
+        function toggleRain() {
+            let fileInput = document.getElementById('rainFile');
+            if (fileInput.files.length > 0 && !rainAudio.src) {
+                rainAudio.src = URL.createObjectURL(fileInput.files[0]);
+                rainAudio.loop = true;
+                rainAudio.volume = document.getElementById('rainVolume').value;
             }
-            currentTrackIndex = index;
-            audioElement.src = playlist[index].url;
-            audioElement.play();
-            updatePlaylistUI();
+            rainAudio.paused ? rainAudio.play() : rainAudio.pause();
         }
 
-        function updatePlaylistUI() {
-            Array.from(document.getElementById('playlist').children).forEach((li, i) => {
-                li.classList.toggle('active', i === currentTrackIndex);
-            });
+        function toggleFireplace() {
+            let fileInput = document.getElementById('fireFile');
+            if (fileInput.files.length > 0 && !fireAudio.src) {
+                fireAudio.src = URL.createObjectURL(fileInput.files[0]);
+                fireAudio.loop = true;
+                fireAudio.volume = document.getElementById('fireplaceVolume').value;
+            }
+            fireAudio.paused ? fireAudio.play() : fireAudio.pause();
         }
 
-        function nextTrack() {
-            currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
-            playTrack(currentTrackIndex);
+        function setRainVolume() {
+            rainAudio.volume = document.getElementById('rainVolume').value;
         }
 
-        function previousTrack() {
-            currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
-            playTrack(currentTrackIndex);
+        function setFireplaceVolume() {
+            fireAudio.volume = document.getElementById('fireplaceVolume').value;
         }
-
-        audioElement.addEventListener('ended', nextTrack);
     </script>
 </body>
 </html>
