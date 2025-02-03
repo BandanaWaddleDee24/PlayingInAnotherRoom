@@ -95,6 +95,7 @@
         let gainNode = audioCtx.createGain();
         let playlist = [];
         let currentTrackIndex = 0;
+        let mediaElementSource;
 
         document.getElementById('audioFiles').addEventListener('change', function(event) {
             handleFileUpload(event.target.files);
@@ -119,18 +120,22 @@
         function playTrack(index) {
             currentTrackIndex = index;
             audioElement.src = playlist[index].url;
-            applyAudioProcessing(audioElement);
             audioElement.play();
+            applyAudioProcessing();
+            updatePlaylistUI();
         }
 
-        function applyAudioProcessing(audioElement) {
-            let source = audioCtx.createMediaElementSource(audioElement);
+        function applyAudioProcessing() {
+            if (mediaElementSource) {
+                mediaElementSource.disconnect();
+            }
+            mediaElementSource = audioCtx.createMediaElementSource(audioElement);
             let lowPassFilter = audioCtx.createBiquadFilter();
             lowPassFilter.type = "lowpass";
             lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
             gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
             
-            source.connect(lowPassFilter);
+            mediaElementSource.connect(lowPassFilter);
             lowPassFilter.connect(gainNode);
             gainNode.connect(audioCtx.destination);
         }
