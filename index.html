@@ -131,6 +131,12 @@
             updatePlaylistUI();
         }
 
+        function updatePlaylistUI() {
+            Array.from(document.getElementById('playlist').children).forEach((li, i) => {
+                li.classList.toggle('active', i === currentTrackIndex);
+            });
+        }
+
         function applyAudioProcessing() {
             if (mediaElementSource) {
                 mediaElementSource.disconnect();
