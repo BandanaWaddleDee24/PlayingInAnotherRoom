@@ -3,163 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Playlist with Effects</title>
-    <script src="https://www.youtube.com/iframe_api"></script>
+    <title>Custom Background Sounds</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
         input, button, label { margin: 10px; display: block; width: 80%; max-width: 400px; }
         #playlist { list-style: none; padding: 0; }
         #playlist li { padding: 5px; cursor: pointer; border-bottom: 1px solid #ddd; }
         #playlist li.active { font-weight: bold; color: green; }
-        #playerContainer { margin-top: 20px; }
     </style>
 </head>
 <body>
+<h2>Upload Multiple MP3s to Create a Playlist</h2>
+<input type="file" id="audioFiles" accept=".mp3, audio/*" multiple>
+<label>
+    <input type="checkbox" id="loopPlaylist"> Loop Playlist
+</label>
+<button onclick="playPlaylist()">Play Playlist</button>
+<button onclick="pauseAudio()">Pause</button>
+<button onclick="nextTrack()">Skip to Next</button>
 
-<h2>YouTube Playlist with "Other Room" Effect</h2>
-<input type="text" id="youtubeLink" placeholder="Paste YouTube link and press Add">
-<button onclick="addToPlaylist()">Add to Playlist</button>
+<h3>Custom Background Sounds</h3>
+<label>Upload Rain Sound: <input type="file" id="rainFile" accept=".mp3, audio/*"></label>
+<button onclick="toggleRain()">🌧 Toggle Rain</button>
+<input type="range" id="rainVolume" min="0" max="1" step="0.1" value="0.3" onchange="setRainVolume()"> 
+
+<label>Upload Fireplace Sound: <input type="file" id="fireFile" accept=".mp3, audio/*"></label>
+<button onclick="toggleFireplace()">🔥 Toggle Fireplace</button>
+<input type="range" id="fireplaceVolume" min="0" max="1" step="0.1" value="0.3" onchange="setFireplaceVolume()"> 
 
 <ul id="playlist"></ul>
-
-<div id="playerContainer">
-    <div id="player"></div>
-</div>
-
-<h3>Playback Controls</h3>
-<button onclick="togglePlayPause()">▶️ Play/Pause</button>
-<button onclick="nextTrack()">⏭ Skip</button>
-
-<h3>Background Sounds</h3>
-<button onclick="toggleRain()">🌧 Toggle Rain</button>
-<button onclick="toggleFireplace()">🔥 Toggle Fireplace</button>
+<audio id="audio" controls></audio>
 
 <script>
+    let audioElement = document.getElementById('audio');
+    let audioCtx;
+    let mediaElementSource, lowPassFilter, gainNode;
+    let rainGainNode, fireplaceGainNode;
     let playlist = [];
-    let currentIndex = 0;
-    let player;
-    let audioCtx, gainNode, lowPassFilter;
-    let audioElement;
-    let isPlaying = false;
+    let currentTrackIndex = 0;
+    let loopPlaylist = false;
+    let rainPlaying = false;
+    let fireplacePlaying = false;
+    let rainAudio, fireplaceAudio;
 
-    function onYouTubeIframeAPIReady() {
-        player = new YT.Player('player', {
-            height: '300',
-            width: '500',
-            videoId: '',
-            playerVars: { 'playsinline': 1, 'autoplay': 0, 'mute': 1 },
-            events: {
-                'onReady': onPlayerReady,
-                'onStateChange': onPlayerStateChange
-            }
-        });
-    }
+    document.getElementById('loopPlaylist').addEventListener('change', (event) => {
+        loopPlaylist = event.target.checked;
+    });
 
-    function onPlayerReady(event) {
-        setupAudioContext();
-        audioElement = new Audio();
-        audioElement.crossOrigin = "anonymous";
-        audioElement.controls = true;
-        document.body.appendChild(audioElement);
-    }
-
-    function setupAudioContext() {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        gainNode = audioCtx.createGain();
-        lowPassFilter = audioCtx.createBiquadFilter();
-        lowPassFilter.type = "lowpass";
-        lowPassFilter.frequency.setValueAtTime(500, audioCtx.currentTime);
-        lowPassFilter.Q.setValueAtTime(1.5, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.7, audioCtx.currentTime);
-    }
-
-    function addToPlaylist() {
-        const linkInput = document.getElementById('youtubeLink');
-        const videoId = extractVideoId(linkInput.value);
-
-        if (videoId) {
-            playlist.push(videoId);
-            updatePlaylistUI();
-            if (playlist.length === 1) {
-                playTrack(0);
-            }
-        } else {
-            alert("Invalid YouTube link!");
+    function initializeAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
-
-        linkInput.value = "";
-    }
-
-    function playTrack(index) {
-        if (index < playlist.length) {
-            currentIndex = index;
-            player.loadVideoById(playlist[index]);
-            isPlaying = true;
-            updatePlaylistUI();
-
-            // Extract audio and apply effects
-            extractAudio(playlist[index]);
+        if (audioCtx.state === "suspended") {
+            audioCtx.resume();
         }
     }
 
-    function extractAudio(videoId) {
-        audioElement.src = `https://www.youtube.com/watch?v=${videoId}`;
-        audioElement.play();
-
-        const source = audioCtx.createMediaElementSource(audioElement);
-        source.connect(lowPassFilter);
-        lowPassFilter.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-    }
-
-    function togglePlayPause() {
-        if (!player) return;
-
-        if (isPlaying) {
-            player.pauseVideo();
-            audioElement.pause();
-        } else {
-            player.playVideo();
-            audioElement.play();
+    function playPlaylist() {
+        const fileInput = document.getElementById('audioFiles');
+        if (fileInput.files.length === 0) {
+            alert("Please upload audio files!");
+            return;
         }
-        isPlaying = !isPlaying;
-    }
 
-    function nextTrack() {
-        if (currentIndex + 1 < playlist.length) {
-            playTrack(currentIndex + 1);
-        }
-    }
+        playlist = [];
+        currentTrackIndex = 0;
 
-    function onPlayerStateChange(event) {
-        if (event.data === YT.PlayerState.ENDED) {
-            nextTrack();
-        }
-    }
-
-    function extractVideoId(url) {
-        const match = url.match(/[?&]v=([^&]+)/) || url.match(/youtu\.be\/([^?]+)/);
-        return match ? match[1] : null;
-    }
-
-    function updatePlaylistUI() {
+        const fileList = Array.from(fileInput.files);
         const playlistElement = document.getElementById('playlist');
-        playlistElement.innerHTML = "";
-        playlist.forEach((videoId, index) => {
+        playlistElement.innerHTML = '';
+
+        fileList.forEach((file, index) => {
+            const objectURL = URL.createObjectURL(file);
+            playlist.push({ name: file.name, url: objectURL });
+
             const listItem = document.createElement('li');
-            listItem.textContent = `Video ${index + 1}`;
-            listItem.classList.toggle("active", index === currentIndex);
-            listItem.onclick = () => playTrack(index);
+            listItem.textContent = file.name;
+            listItem.addEventListener('click', () => playSpecificTrack(index));
             playlistElement.appendChild(listItem);
         });
+
+        applyEffectAndPlay(0);
+    }
+
+    function applyEffectAndPlay(index) {
+        initializeAudioContext();
+
+        currentTrackIndex = index;
+        audioElement.src = playlist[index].url;
+        audioElement.play().catch(err => console.error("Play error:", err));
+
+        if (mediaElementSource) {
+            mediaElementSource.disconnect();
+        }
+
+        mediaElementSource = audioCtx.createMediaElementSource(audioElement);
+        lowPassFilter = audioCtx.createBiquadFilter();
+        lowPassFilter.type = "lowpass";
+        lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
+        lowPassFilter.Q.setValueAtTime(1.8, audioCtx.currentTime);
+
+        gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
+
+        mediaElementSource.connect(lowPassFilter);
+        lowPassFilter.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        updatePlaylistUI();
+    }
+
+    function setupCustomBackground(fileInput, audioRef, gainNode) {
+        if (fileInput.files.length === 0) return;
+
+        const file = fileInput.files[0];
+        const objectURL = URL.createObjectURL(file);
+        audioRef.src = objectURL;
+        audioRef.loop = true;
+        audioRef.volume = 0.3;
+        gainNode.gain.setValueAtTime(audioRef.volume, audioCtx.currentTime);
     }
 
     function toggleRain() {
-        alert("Rain sound toggled (Not implemented yet)");
+        initializeAudioContext();
+        if (!rainAudio) {
+            rainAudio = new Audio();
+            rainGainNode = audioCtx.createGain();
+            setupCustomBackground(document.getElementById('rainFile'), rainAudio, rainGainNode);
+        }
+        if (rainPlaying) {
+            rainAudio.pause();
+        } else {
+            rainAudio.play();
+        }
+        rainPlaying = !rainPlaying;
     }
 
     function toggleFireplace() {
-        alert("Fireplace sound toggled (Not implemented yet)");
+        initializeAudioContext();
+        if (!fireplaceAudio) {
+            fireplaceAudio = new Audio();
+            fireplaceGainNode = audioCtx.createGain();
+            setupCustomBackground(document.getElementById('fireFile'), fireplaceAudio, fireplaceGainNode);
+        }
+        if (fireplacePlaying) {
+            fireplaceAudio.pause();
+        } else {
+            fireplaceAudio.play();
+        }
+        fireplacePlaying = !fireplacePlaying;
+    }
+
+    function setRainVolume() {
+        if (rainAudio) rainAudio.volume = document.getElementById('rainVolume').value;
+    }
+
+    function setFireplaceVolume() {
+        if (fireplaceAudio) fireplaceAudio.volume = document.getElementById('fireplaceVolume').value;
     }
 
 </script>
