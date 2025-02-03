@@ -98,19 +98,20 @@
         let lowPassFilter = audioCtx.createBiquadFilter();
         let playlist = [];
         let currentTrackIndex = 0;
-        let mediaElementSource = audioCtx.createMediaElementSource(audioElement);
+        let mediaElementSource;
 
         lowPassFilter.type = "lowpass";
         lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
         gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
 
-        mediaElementSource.connect(lowPassFilter);
-        lowPassFilter.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        document.getElementById('audioFiles').addEventListener('change', function(event) {
-            handleFileUpload(event.target.files);
-        });
+        function setupAudioProcessing() {
+            if (!mediaElementSource) {
+                mediaElementSource = audioCtx.createMediaElementSource(audioElement);
+                mediaElementSource.connect(lowPassFilter);
+                lowPassFilter.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+            }
+        }
 
         function handleFileUpload(files) {
             playlist = [];
@@ -127,6 +128,33 @@
                 playlistElement.appendChild(listItem);
             });
             if (playlist.length > 0) playTrack(0);
+        }
+
+        function playTrack(index) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            currentTrackIndex = index;
+            audioElement.src = playlist[index].url;
+            audioElement.play();
+            updatePlaylistUI();
+            setupAudioProcessing();
+        }
+
+        function updatePlaylistUI() {
+            Array.from(document.getElementById('playlist').children).forEach((li, i) => {
+                li.classList.toggle('active', i === currentTrackIndex);
+            });
+        }
+
+        function nextTrack() {
+            currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+            playTrack(currentTrackIndex);
+        }
+
+        function previousTrack() {
+            currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+            playTrack(currentTrackIndex);
         }
 
         function toggleRain() {
@@ -156,6 +184,11 @@
         function setFireplaceVolume() {
             fireAudio.volume = document.getElementById('fireplaceVolume').value;
         }
+
+        audioElement.addEventListener('ended', nextTrack);
+        document.getElementById('audioFiles').addEventListener('change', function(event) {
+            handleFileUpload(event.target.files);
+        });
     </script>
 </body>
 </html>
