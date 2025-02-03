@@ -121,13 +121,9 @@
         }
 
         function playTrack(index) {
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
             currentTrackIndex = index;
             audioElement.src = playlist[index].url;
             audioElement.play();
-            applyAudioProcessing();
             updatePlaylistUI();
         }
 
@@ -135,21 +131,6 @@
             Array.from(document.getElementById('playlist').children).forEach((li, i) => {
                 li.classList.toggle('active', i === currentTrackIndex);
             });
-        }
-
-        function applyAudioProcessing() {
-            if (mediaElementSource) {
-                mediaElementSource.disconnect();
-            }
-            mediaElementSource = audioCtx.createMediaElementSource(audioElement);
-            let lowPassFilter = audioCtx.createBiquadFilter();
-            lowPassFilter.type = "lowpass";
-            lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
-            
-            mediaElementSource.connect(lowPassFilter);
-            lowPassFilter.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
         }
 
         function nextTrack() {
@@ -163,6 +144,36 @@
         }
 
         audioElement.addEventListener('ended', nextTrack);
+
+        function toggleRain() {
+            let fileInput = document.getElementById('rainFile');
+            if (fileInput.files.length > 0 && !rainAudio.src) {
+                let objectURL = URL.createObjectURL(fileInput.files[0]);
+                rainAudio.src = objectURL;
+                rainAudio.loop = true;
+                rainAudio.volume = document.getElementById('rainVolume').value;
+            }
+            rainAudio.paused ? rainAudio.play() : rainAudio.pause();
+        }
+
+        function toggleFireplace() {
+            let fileInput = document.getElementById('fireFile');
+            if (fileInput.files.length > 0 && !fireAudio.src) {
+                let objectURL = URL.createObjectURL(fileInput.files[0]);
+                fireAudio.src = objectURL;
+                fireAudio.loop = true;
+                fireAudio.volume = document.getElementById('fireplaceVolume').value;
+            }
+            fireAudio.paused ? fireAudio.play() : fireAudio.pause();
+        }
+
+        function setRainVolume() {
+            rainAudio.volume = document.getElementById('rainVolume').value;
+        }
+
+        function setFireplaceVolume() {
+            fireAudio.volume = document.getElementById('fireplaceVolume').value;
+        }
     </script>
 </body>
 </html>
