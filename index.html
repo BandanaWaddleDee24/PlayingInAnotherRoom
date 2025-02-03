@@ -91,6 +91,8 @@
         let audioElement = document.getElementById('audio');
         let rainAudio = new Audio();
         let fireAudio = new Audio();
+        let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let gainNode = audioCtx.createGain();
         let playlist = [];
         let currentTrackIndex = 0;
 
@@ -112,29 +114,32 @@
                 listItem.addEventListener('click', () => playTrack(index));
                 playlistElement.appendChild(listItem);
             });
-            if (playlist.length > 0) {
-                playTrack(0);
-            }
         }
 
         function playTrack(index) {
             currentTrackIndex = index;
             audioElement.src = playlist[index].url;
+            applyAudioProcessing(audioElement);
             audioElement.play();
-            updateActiveUI();
         }
 
-        function updateActiveUI() {
-            let listItems = document.getElementById('playlist').children;
-            Array.from(listItems).forEach((item, index) => {
-                item.classList.toggle('active', index === currentTrackIndex);
-            });
+        function applyAudioProcessing(audioElement) {
+            let source = audioCtx.createMediaElementSource(audioElement);
+            let lowPassFilter = audioCtx.createBiquadFilter();
+            lowPassFilter.type = "lowpass";
+            lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
+            
+            source.connect(lowPassFilter);
+            lowPassFilter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
         }
 
         function toggleRain() {
             let fileInput = document.getElementById('rainFile');
-            if (!rainAudio.src && fileInput.files.length > 0) {
-                rainAudio.src = URL.createObjectURL(fileInput.files[0]);
+            if (fileInput.files.length > 0 && !rainAudio.src) {
+                let objectURL = URL.createObjectURL(fileInput.files[0]);
+                rainAudio.src = objectURL;
                 rainAudio.loop = true;
                 rainAudio.volume = document.getElementById('rainVolume').value;
             }
@@ -143,8 +148,9 @@
 
         function toggleFireplace() {
             let fileInput = document.getElementById('fireFile');
-            if (!fireAudio.src && fileInput.files.length > 0) {
-                fireAudio.src = URL.createObjectURL(fileInput.files[0]);
+            if (fileInput.files.length > 0 && !fireAudio.src) {
+                let objectURL = URL.createObjectURL(fileInput.files[0]);
+                fireAudio.src = objectURL;
                 fireAudio.loop = true;
                 fireAudio.volume = document.getElementById('fireplaceVolume').value;
             }
