@@ -39,7 +39,7 @@
             background: #45a049;
         }
 
-        #playlist {
+        #playlist, #bgPlaylist {
             list-style: none;
             padding: 0;
             margin-top: 20px;
@@ -51,214 +51,97 @@
             padding: 10px;
         }
 
-        #playlist li {
+        #playlist li, #bgPlaylist li {
             padding: 10px;
             cursor: pointer;
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             transition: 0.3s;
         }
 
-        #playlist li:last-child {
-            border-bottom: none;
-        }
-
-        #playlist li:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        #playlist li.active {
+        #playlist li.active, #bgPlaylist li.active {
             font-weight: bold;
             color: #ffeb3b;
-        }
-
-        input[type="range"] {
-            width: 80%;
-            margin: 10px 0;
-            appearance: none;
-            background: transparent;
-        }
-
-        input[type="range"]::-webkit-slider-runnable-track {
-            height: 8px;
-            background: #ff9800;
-            border-radius: 5px;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            appearance: none;
-            width: 15px;
-            height: 15px;
-            background: white;
-            border-radius: 50%;
-            cursor: pointer;
-            margin-top: -4px;
-        }
-
-        .audio-controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .audio-controls div {
-            display: flex;
-            gap: 10px;
-        }
-
-        audio {
-            margin-top: 20px;
-            width: 90%;
-            max-width: 400px;
         }
     </style>
 </head>
 <body>
-    <h2>Upload Multiple MP3s to Create a Playlist</h2>
+    <h2>Upload MP3s to Create a Playlist</h2>
     <input type="file" id="audioFiles" accept=".mp3, audio/*" multiple>
-    <label>
-        <input type="checkbox" id="loopPlaylist"> Loop Playlist
-    </label>
 
-    <div class="audio-controls">
-        <div>
-            <button onclick="playPlaylist()">▶ Play</button>
-            <button onclick="pauseAudio()">⏸ Pause</button>
-            <button onclick="nextTrack()">⏭ Skip</button>
-        </div>
-    </div>
-
-    <h3>Custom Background Sounds</h3>
-
-    <label>Upload Rain Sound: <input type="file" id="rainFile" accept=".mp3, audio/*"></label>
-    <button onclick="toggleRain()">🌧 Toggle Rain</button>
-    <input type="range" id="rainVolume" min="0" max="1" step="0.1" value="0.3" onchange="setRainVolume()"> 
-
-    <label>Upload Fireplace Sound: <input type="file" id="fireFile" accept=".mp3, audio/*"></label>
-    <button onclick="toggleFireplace()">🔥 Toggle Fireplace</button>
-    <input type="range" id="fireplaceVolume" min="0" max="1" step="0.1" value="0.3" onchange="setFireplaceVolume()"> 
+    <h3>Upload and Select Background Sounds</h3>
+    <input type="file" id="bgAudioFiles" accept=".mp3, audio/*" multiple>
+    <ul id="bgPlaylist"></ul>
+    
+    <button onclick="playBgAudio()">Play Background Sound</button>
+    <button onclick="stopBgAudio()">Stop Background Sound</button>
+    <input type="range" id="bgVolume" min="0" max="1" step="0.1" value="0.3" onchange="setBgVolume()"> 
 
     <ul id="playlist"></ul>
     <audio id="audio" controls></audio>
 
     <script>
         let audioElement = document.getElementById('audio');
-        let audioCtx;
-        let mediaElementSource, lowPassFilter, gainNode;
-        let rainGainNode, fireplaceGainNode;
+        let bgAudioElement = new Audio();
         let playlist = [];
+        let bgPlaylist = [];
         let currentTrackIndex = 0;
-        let loopPlaylist = false;
-        let rainPlaying = false;
-        let fireplacePlaying = false;
-        let rainAudio, fireplaceAudio;
 
-        document.getElementById('loopPlaylist').addEventListener('change', (event) => {
-            loopPlaylist = event.target.checked;
+        document.getElementById('audioFiles').addEventListener('change', function(event) {
+            handleFileUpload(event.target.files, playlist, 'playlist', playTrack);
         });
 
-        function initializeAudioContext() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === "suspended") {
-                audioCtx.resume();
-            }
-        }
+        document.getElementById('bgAudioFiles').addEventListener('change', function(event) {
+            handleFileUpload(event.target.files, bgPlaylist, 'bgPlaylist', setBgTrack);
+        });
 
-        function playPlaylist() {
-            const fileInput = document.getElementById('audioFiles');
-            if (fileInput.files.length === 0) {
-                alert("Please upload audio files!");
-                return;
-            }
+        function handleFileUpload(files, targetPlaylist, targetElementId, clickCallback) {
+            targetPlaylist.length = 0;
+            let targetElement = document.getElementById(targetElementId);
+            targetElement.innerHTML = '';
 
-            playlist = [];
-            currentTrackIndex = 0;
+            Array.from(files).forEach((file, index) => {
+                let objectURL = URL.createObjectURL(file);
+                targetPlaylist.push({ name: file.name, url: objectURL });
 
-            const fileList = Array.from(fileInput.files);
-            const playlistElement = document.getElementById('playlist');
-            playlistElement.innerHTML = '';
-
-            fileList.forEach((file, index) => {
-                const objectURL = URL.createObjectURL(file);
-                playlist.push({ name: file.name, url: objectURL });
-
-                const listItem = document.createElement('li');
+                let listItem = document.createElement('li');
                 listItem.textContent = file.name;
-                listItem.addEventListener('click', () => playSpecificTrack(index));
-                playlistElement.appendChild(listItem);
+                listItem.addEventListener('click', () => clickCallback(index));
+                targetElement.appendChild(listItem);
             });
-
-            applyEffectAndPlay(0);
         }
 
-        function applyEffectAndPlay(index) {
-            initializeAudioContext();
-
+        function playTrack(index) {
             currentTrackIndex = index;
             audioElement.src = playlist[index].url;
-            audioElement.play().catch(err => console.error("Play error:", err));
-
-            if (mediaElementSource) {
-                mediaElementSource.disconnect();
-            }
-
-            mediaElementSource = audioCtx.createMediaElementSource(audioElement);
-            lowPassFilter = audioCtx.createBiquadFilter();
-            lowPassFilter.type = "lowpass";
-            lowPassFilter.frequency.setValueAtTime(300, audioCtx.currentTime);
-            lowPassFilter.Q.setValueAtTime(1.8, audioCtx.currentTime);
-
-            gainNode = audioCtx.createGain();
-            gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
-
-            mediaElementSource.connect(lowPassFilter);
-            lowPassFilter.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
-            updatePlaylistUI();
+            audioElement.play();
+            updateActiveUI(playlist, 'playlist', index);
         }
 
-        function setupCustomBackground(fileInput, audioRef, gainNode) {
-            if (fileInput.files.length === 0) return;
-
-            const file = fileInput.files[0];
-            const objectURL = URL.createObjectURL(file);
-            audioRef.src = objectURL;
-            audioRef.loop = true;
-            audioRef.volume = 0.3;
-            gainNode.gain.setValueAtTime(audioRef.volume, audioCtx.currentTime);
+        function setBgTrack(index) {
+            bgAudioElement.src = bgPlaylist[index].url;
+            bgAudioElement.loop = true;
+            updateActiveUI(bgPlaylist, 'bgPlaylist', index);
         }
 
-        function toggleRain() {
-            initializeAudioContext();
-            if (!rainAudio) {
-                rainAudio = new Audio();
-                rainGainNode = audioCtx.createGain();
-                setupCustomBackground(document.getElementById('rainFile'), rainAudio, rainGainNode);
-            }
-            rainPlaying ? rainAudio.pause() : rainAudio.play();
-            rainPlaying = !rainPlaying;
+        function playBgAudio() {
+            bgAudioElement.volume = document.getElementById('bgVolume').value;
+            bgAudioElement.play();
         }
 
-        function toggleFireplace() {
-            initializeAudioContext();
-            if (!fireplaceAudio) {
-                fireplaceAudio = new Audio();
-                fireplaceGainNode = audioCtx.createGain();
-                setupCustomBackground(document.getElementById('fireFile'), fireplaceAudio, fireplaceGainNode);
-            }
-            fireplacePlaying ? fireplaceAudio.pause() : fireplaceAudio.play();
-            fireplacePlaying = !fireplacePlaying;
+        function stopBgAudio() {
+            bgAudioElement.pause();
+            bgAudioElement.currentTime = 0;
         }
 
-        function setRainVolume() {
-            if (rainAudio) rainAudio.volume = document.getElementById('rainVolume').value;
+        function setBgVolume() {
+            bgAudioElement.volume = document.getElementById('bgVolume').value;
         }
 
-        function setFireplaceVolume() {
-            if (fireplaceAudio) fireplaceAudio.volume = document.getElementById('fireplaceVolume').value;
+        function updateActiveUI(playlist, elementId, activeIndex) {
+            let listItems = document.getElementById(elementId).children;
+            Array.from(listItems).forEach((item, index) => {
+                item.classList.toggle('active', index === activeIndex);
+            });
         }
     </script>
 </body>
